@@ -36,7 +36,10 @@ app.use("/api", postsRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/comments", commentRoutes);
 
-// Start server
-app.listen(8000, () => {
-    console.log("server is running!!!");
+const PORT = process.env.PORT || 8000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+app.get("/", (req, res) => {
+    res.send("Backend is running!");
 });
