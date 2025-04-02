@@ -80,7 +80,7 @@ const createPost = async (req, res) => {
     const newPost = await Posts.create({
       user_id,
       content,
-      status: status || "chờ duyệt",
+      status: status || false,
       loaiPost: loaiPost || "không chọn",
     });
 
@@ -139,12 +139,11 @@ const getImagesByPostId = async (req, res) => {
   try {
     const { post_id } = req.params;
 
-    if (!post_id) {
-      return res.status(400).json({ error: "Thiếu post_id" });
-    }
+    // Ép kiểu post_id nếu cần
+    const postId = isNaN(post_id) ? post_id : parseInt(post_id, 10);
 
     const images = await Images.findAll({
-      where: { post_id },
+      where: { post_id: postId },
       attributes: ["image_url"],
     });
 
@@ -152,7 +151,9 @@ const getImagesByPostId = async (req, res) => {
       return res.status(404).json({ error: "Không có ảnh nào cho bài viết này" });
     }
 
-    return res.status(200).json({ images });
+    // Chỉ trả về mảng URL nếu frontend cần
+    const imageUrls = images.map(img => img.image_url);
+    return res.status(200).json(imageUrls);
   } catch (err) {
     console.error("Lỗi khi lấy danh sách ảnh:", err);
     return res.status(500).json({ error: "Lỗi server", details: err.message });
@@ -179,8 +180,39 @@ const deletePostById = async (req, res) => {
     return res.status(500).json({ error: "Lỗi xóa bài viết", details: err.message });
   }
 };
+const duyet = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    console.log("Trạng thái mới:",req.params);
+      const post = await Posts.findByPk(id);
+
+      if (!post) {
+          return res.status(404).json({ message: "Bài viết không tồn tại" });
+      }
+
+      // Lấy trạng thái hiện tại
+      const currentStatus = post.status;
+      console.log("Trạng thái mới:", currentStatus);
+
+      // Toggle trạng thái (chờ duyệt -> đã duyệt hoặc ngược lại)
+      post.status = currentStatus === false ? true : false;
+      console.log("Trạng thái mới:", post.status);
+      await post.save();
+
+      return res.status(200).json({
+          message: `Trạng thái bài viết đã được thay đổi thành: ${post.status}`,
+          post,
+      });
+  } catch (error) {
+      console.error("Lỗi khi thay đổi trạng thái bài viết:", error);
+      return res.status(500).json({ message: "Lỗi khi duyệt bài viết" });
+  }
+};
+
 
 module.exports = {
+  duyet,
   createPost,
   getAllPosts,
   updatePost,

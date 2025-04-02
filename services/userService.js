@@ -4,7 +4,7 @@ const getUserByEmail = async (email) => {
   try {
     const user = await Users.findOne({
       where: { email },
-      attributes: ["id", "fullname", "avatar", "password"],
+      attributes: ["id", "fullname", "avatar", "password","role"],
     });
 
     return user || null;

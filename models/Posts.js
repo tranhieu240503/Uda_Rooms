@@ -20,7 +20,7 @@ const Posts = sequelize.define(
     status: {
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: "chờ duyệt",
+      defaultValue: false,
     },
     loaiPost: {
       type: DataTypes.STRING,

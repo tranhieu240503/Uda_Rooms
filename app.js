@@ -11,7 +11,7 @@ const postsRoutes = require("./routes/postsRoutes");
 const userRoutes = require("./routes/userRoutes");
 const commentRoutes = require("./routes/commentsRoutes");
 const nhaTrorouter = require("./routes/NhaTroRoutes");
-
+const verifyToken =require("./middlewares/authMiddleware");
 const tienichrouter = require("./routes/TienIchRouter");
 
 const app = express();
@@ -35,7 +35,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api", postsRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/comments", commentRoutes);
-
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
@@ -43,3 +42,17 @@ app.listen(PORT, () => {
 app.get("/", (req, res) => {
     res.send("Backend is running!");
 });
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+const verifyAdmin = (req, res, next) => {
+    if (req.user.role !== "admin") {
+      console.log("Unauthorized access attempt:", req.user);
+      return res.status(403).json({ error: "Bạn không có quyền truy cập!" });
+    }
+    next();
+  };
+  
+  // API chỉ admin mới được truy cập
+  app.get("/admin", verifyToken, verifyAdmin, (req, res) => {
+    console.log("Admin access granted:", req.user); 
+    res.json({ message: "Chào mừng admin!", user: req.user });
+  });

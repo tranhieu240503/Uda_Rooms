@@ -82,6 +82,7 @@ const login = async (req, res) => {
   
     try {
       const user = await getUserByEmail(email);
+      console.log("user",user)
   
       if (!user) {
         return res.status(400).json({ error: "Email không tồn tại" });
@@ -98,6 +99,7 @@ const login = async (req, res) => {
           id: user.id,
           fullname: user.fullname,
           avatar: user.avatar,
+          role: user.role
         },
         process.env.JWT_SECRET,
         { expiresIn: "1d" }

@@ -29,7 +29,11 @@ const TienIchXungQuanh = sequelize.define(
     lon: {
       type: DataTypes.STRING(255),
     },
+    diaChi: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
   },
+},
   {
     tableName: "TienIchXungQuanh",
     timestamps: false,

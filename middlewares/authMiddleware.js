@@ -1,28 +1,39 @@
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
 const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Không có token, truy cập bị từ chối!" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
   try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Bạn chưa đăng nhập, vui lòng đăng nhập để tiếp tục!" });
+    }
+
+    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Gán toàn bộ thông tin từ token vào req.user
+
+    // Xác định role: 1 là admin, còn lại là user
+    const role = decoded.role === 1 ? "admin" : "user";
+
+    // Gán thông tin vào req.user
     req.user = {
       id: decoded.id,
       fullname: decoded.fullname,
       avatar: decoded.avatar,
+      role: role, // 'admin' hoặc 'user'
     };
-    next(); // Tiến hành xử lý tiếp theo trong route
+
+    next(); // Tiếp tục xử lý request
   } catch (err) {
-    console.error("Token verification error:", err);
-    return res.status(403).json({ error: "Token không hợp lệ hoặc đã hết hạn!" });
+    console.error("Lỗi xác thực token:", err);
+
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Token đã hết hạn, vui lòng đăng nhập lại!" });
+    }
+
+    return res.status(403).json({ error: "Token không hợp lệ!" });
   }
 };
+
 
 module.exports = verifyToken;

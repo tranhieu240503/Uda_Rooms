@@ -22,29 +22,56 @@ const storage = multer.diskStorage({
 const uploadSingle = multer({ storage }).single("image");
 const uploadMultiple = multer({ storage }).array("images", 5); // Tối đa 5 ảnh
 
-// Hàm resize ảnh (đảm bảo giảm dung lượng tốt)
 const resizeImage = async (filePath) => {
     try {
-        const compressedPath = filePath.replace(/(\.\w+)$/, "_compressed$1"); // Thêm "_compressed" vào tên file
+        // Đảm bảo filePath là đường dẫn tuyệt đối
+        filePath = path.resolve(filePath);
+        const compressedPath = filePath.replace(/(\.\w+)$/, "_compressed$1");
 
-        const buffer = await sharp(filePath)
-            .resize({ width: 800, height:800 ,withoutEnlargement: true}) // Resize chiều rộng tối đa 800px
-            .jpeg({ quality: 60 }) // Giảm chất lượng xuống 60%
-            .toBuffer();
+        // Log để debug
+        console.log(`📂 Đường dẫn file gốc: ${filePath}`);
+        console.log(`📂 Đường dẫn file nén: ${compressedPath}`);
 
-        fs.writeFileSync(compressedPath, buffer); // Ghi file mới
+        // Kiểm tra file gốc có tồn tại không
+        if (!(await fs.access(filePath).then(() => true).catch(() => false))) {
+            throw new Error(`File gốc không tồn tại: ${filePath}`);
+        }
 
-        // Xóa ảnh gốc sau khi resize thành công
-        fs.unlinkSync(filePath);
+        // Nén ảnh bằng sharp
+        await sharp(filePath)
+            .resize({ width: 800, height: 800, withoutEnlargement: true })
+            .jpeg({ quality: 60 })
+            .toFile(compressedPath);
 
-        return compressedPath; // Trả về đường dẫn ảnh mới
+        console.log(`✅ Ảnh đã nén thành công: ${compressedPath}`);
+
+        // Kiểm tra file nén có được tạo không
+        if (!(await fs.access(compressedPath).then(() => true).catch(() => false))) {
+            throw new Error(`File nén không được tạo: ${compressedPath}`);
+        }
+
+        // Chờ 1 giây trước khi xóa file gốc để tránh file bị khóa
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Xóa file gốc
+        try {
+            if (await fs.access(filePath).then(() => true).catch(() => false)) {
+                await fs.unlink(filePath);
+                console.log(`🗑 Ảnh gốc đã xóa: ${filePath}`);
+            } else {
+                console.log(`⚠ File gốc không còn tồn tại: ${filePath}`);
+            }
+        } catch (err) {
+            console.error(`❌ Không thể xóa ảnh gốc: ${err.message}`);
+            throw err; // Ném lỗi để middleware biết có vấn đề
+        }
+
+        return compressedPath;
     } catch (error) {
-        console.error("Lỗi xử lý ảnh:", error);
-        return null;
+        console.error(`🚨 Lỗi xử lý ảnh: ${error.message}`);
+        return filePath; // Trả về file gốc nếu có lỗi
     }
 };
-
-
 // Middleware resize ảnh sau khi upload
 const processImage = async (req, res, next) => {
     if (req.file) {
