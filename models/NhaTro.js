@@ -26,7 +26,7 @@ const NhaTro = sequelize.define(
         ghiChu: { type: DataTypes.STRING },
         // createdAt: { type: DataTypes.DATE, defaultValue: Sequelize.literal("GETDATE()") },
         // updatedAt: { type: DataTypes.DATE, defaultValue: Sequelize.literal("GETDATE()") },
-        nguoiGioiThieu: { type: DataTypes.INTEGER },
+        nguoiGioiThieu: { type: DataTypes.STRING },
 
         nguoiDuyet: { type: DataTypes.INTEGER },
         createdAt: { 

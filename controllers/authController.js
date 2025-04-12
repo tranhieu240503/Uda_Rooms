@@ -8,8 +8,9 @@ const { getUserByEmail } = require("../services/userService");
 const register = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const avatar = "/upload_avataruser/avater-mac-dinh.png"
+        const avatar = "avatar_mac_dinh.jpg"
         // Kiểm tra email đã tồn tại chưa
+        const fullname ="Người dùng ẩn danh"
         const existingUser = await Users.findOne({ where: { email } });
         if (existingUser) {
             return res.status(400).json({ error: "Email đã tồn tại" });
@@ -22,7 +23,8 @@ const register = async (req, res) => {
         const newUser = await Users.create({
             email,
             avatar,
-            password: hashedPassword
+            password: hashedPassword,
+            fullname : fullname
         });
 
         // Trả về thông tin user nhưng không bao gồm mật khẩu

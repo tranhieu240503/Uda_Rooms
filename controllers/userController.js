@@ -10,9 +10,9 @@ const fs = require("fs");
 // Cập nhật thông tin người dùng
 
 const updateUser = async (req, res) => {
+  console.log(req.user)
   const { id } = req.user;
   const { fullname, password, phone, gender } = req.body;
-
   try {
     const user = await Users.findByPk(id);
     if (!user) {
@@ -149,8 +149,107 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  try {
+    // Lấy tất cả người dùng
+    const usersall = await Users.findAll();
+    console.log(usersall);
+     res.status(200).json( usersall );
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách người dùng:", error);
+     res.status(500).json( error);
+  }
+};const deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
 
+    const user = await Users.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Người dùng không tồn tại" });
+    }
+
+    await user.destroy(); // hoặc dùng xóa mềm nếu cần
+    return res.status(200).json({ message: "Xóa người dùng thành công" });
+  } catch (error) {
+    console.error("Lỗi khi xóa người dùng:", error);
+    return res.status(500).json({ error: "Lỗi hệ thống", detail: error.message });
+  }
+};
+const updateUserByAdmin = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const updatedData = req.body;
+
+    // Validate input
+    if (!userId || isNaN(userId)) {
+      return res.status(400).json({ message: "ID người dùng không hợp lệ." });
+    }
+    if (!updatedData || Object.keys(updatedData).length === 0) {
+      return res.status(400).json({ message: "Dữ liệu cập nhật không được để trống." });
+    }
+
+    // Check if user exists
+    const user = await Users.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: `Không tìm thấy người dùng với ID: ${userId}` });
+    }
+
+    // Validate required fields
+    const { fullname, email, phone, password } = updatedData;
+    if (!fullname?.trim() || !email?.trim() || !phone?.trim()) {
+      return res.status(400).json({ message: "fullname, email, và phone là bắt buộc." });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Email không hợp lệ." });
+    }
+
+    // Check for email uniqueness
+    if (email !== user.email) {
+      const existingUser = await Users.findOne({ where: { email } });
+      if (existingUser && existingUser.id !== parseInt(userId)) {
+        return res.status(400).json({ message: "Email đã được sử dụng." });
+      }
+    }
+
+    // Validate password if provided
+    let hashedPassword = user.password; // Giữ nguyên nếu không đổi
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Mật khẩu phải có ít nhất 6 ký tự." });
+      }
+      hashedPassword = await bcrypt.hash(password, 10); // Hash mật khẩu
+    }
+
+    // Update user
+    const [updatedRows] = await Users.update(
+      { fullname, email, phone, password: hashedPassword },
+      { where: { id: userId } }
+    );
+
+    if (updatedRows === 0) {
+      return res.status(400).json({ message: "Không có thay đổi nào được thực hiện." });
+    }
+
+    return res.status(200).json({ message: "Cập nhật người dùng thành công!" });
+  } catch (error) {
+    console.error("Lỗi khi cập nhật người dùng:", {
+      message: error.message,
+      stack: error.stack,
+      details: error,
+    });
+    return res.status(500).json({
+      message: "Lỗi server khi cập nhật người dùng",
+      error: error.message,
+    });
+  }
+};
 module.exports = {
+  updateUserByAdmin,
+  deleteUser,
+  getAllUsers,
   updateUser,
   getCurrentUser,
   getUserById,
