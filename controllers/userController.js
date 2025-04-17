@@ -10,29 +10,63 @@ const fs = require("fs");
 // Cập nhật thông tin người dùng
 
 const updateUser = async (req, res) => {
-  console.log(req.user)
+  console.log('Request body:', req.body);
+  console.log('User from token:', req.user);
   const { id } = req.user;
-  const { fullname, password, phone, gender } = req.body;
+  const { fullname, currentPassword, newPassword, phone, gender } = req.body;
+
   try {
     const user = await Users.findByPk(id);
+    console.log('User found:', user?.toJSON());
     if (!user) {
       return res.status(404).json({ error: "Người dùng không tồn tại" });
     }
 
+    // Kiểm tra currentPassword nếu có
+    if (currentPassword && newPassword) {
+      const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isPasswordValid) {
+        return res.status(400).json({ message: "Mật khẩu hiện tại không đúng." });
+      }
+    }
+
+    // Validate newPassword nếu có
+    let hashedPassword = user.password;
+    if (newPassword) {
+      console.log('New password received:', newPassword);
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "Mật khẩu mới phải có ít nhất 6 ký tự." });
+      }
+      hashedPassword = await bcrypt.hash(newPassword, 10);
+      console.log('Hashed new password:', hashedPassword);
+    }
+
     // Cập nhật thông tin
-    if (fullname) user.fullname = fullname;
-    if (phone) user.phone = phone;
-    if (gender) user.gender = gender;
-    if (password) user.password = await bcrypt.hash(password, 10);
+    const updatedFields = {
+      fullname: fullname || user.fullname,
+      phone: phone || user.phone,
+      gender: gender || user.gender,
+      password: hashedPassword,
+    };
+    console.log('Updated fields:', updatedFields);
 
-    await user.save();
+    const [updatedRows] = await Users.update(updatedFields, { where: { id } });
+    console.log('Updated rows:', updatedRows);
 
-    // Tạo token mới với thông tin mới
+    if (updatedRows === 0) {
+      return res.status(400).json({ message: "Không có thay đổi nào được thực hiện." });
+    }
+
+    // Lấy thông tin người dùng sau khi cập nhật
+    const updatedUser = await Users.findByPk(id);
+    console.log('Updated user:', updatedUser?.toJSON());
+
+    // Tạo token mới
     const newToken = jwt.sign(
       {
-        id: user.id,
-        fullname: user.fullname,
-        avatar: user.avatar,
+        id: updatedUser.id,
+        fullname: updatedUser.fullname,
+        avatar: updatedUser.avatar,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -40,8 +74,14 @@ const updateUser = async (req, res) => {
 
     return res.status(200).json({ message: "Cập nhật thành công!", token: newToken });
   } catch (error) {
-    console.error("Lỗi khi cập nhật người dùng:", error);
-    return res.status(500).json({ error: "Lỗi hệ thống" });
+    console.error('Error updating user:', {
+      message: error.message,
+      stack: error.stack,
+    });
+    return res.status(500).json({
+      message: "Lỗi server khi cập nhật người dùng",
+      error: error.message,
+    });
   }
 };
 
@@ -69,7 +109,7 @@ const getUserById = async (req, res) => {
   try {
     const user = await Users.findOne({
       where: { id: req.params.id },
-      attributes: ["id", "email", "fullname", "avatar", "phone", "gender"],
+      attributes: ["id", "email", "fullname", "avatar", "phone", "gender", "password"],
     });
 
     if (!user) {
@@ -154,12 +194,13 @@ const getAllUsers = async (req, res) => {
     // Lấy tất cả người dùng
     const usersall = await Users.findAll();
     console.log(usersall);
-     res.status(200).json( usersall );
+    res.status(200).json(usersall);
   } catch (error) {
     console.error("Lỗi khi lấy danh sách người dùng:", error);
-     res.status(500).json( error);
+    res.status(500).json(error);
   }
-};const deleteUser = async (req, res) => {
+};
+const deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;
 
@@ -216,13 +257,12 @@ const updateUserByAdmin = async (req, res) => {
 
     // Validate password if provided
     let hashedPassword = user.password; // Giữ nguyên nếu không đổi
-    if (password) {
+    if (password && !password.startsWith("$2b$")) { // Chỉ hash nếu không phải hash cũ
       if (password.length < 6) {
         return res.status(400).json({ message: "Mật khẩu phải có ít nhất 6 ký tự." });
       }
-      hashedPassword = await bcrypt.hash(password, 10); // Hash mật khẩu
+      hashedPassword = await bcrypt.hash(password, 10); // Hash mật khẩu mới
     }
-
     // Update user
     const [updatedRows] = await Users.update(
       { fullname, email, phone, password: hashedPassword },

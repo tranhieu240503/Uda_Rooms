@@ -94,7 +94,8 @@ const login = async (req, res) => {
       if (!validPassword) {
         return res.status(400).json({ error: "Sai mật khẩu" });
       }
-  
+      user.changed('updatedAt', true);
+      await user.save();
       // Tạo token với các trường id, fullname, avatar
       const token = jwt.sign(
         {
@@ -103,7 +104,7 @@ const login = async (req, res) => {
           avatar: user.avatar,
           role: user.role
         },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET, 
         { expiresIn: "1d" }
       );
   
